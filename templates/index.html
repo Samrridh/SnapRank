@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tier List</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6">
+  <h1 class="text-3xl font-bold text-center mb-4">Collaborative Tier List</h1>
+
+  <!-- Upload form -->
+  <form action="/upload" method="POST" enctype="multipart/form-data" class="flex justify-center gap-4 mb-6">
+    <input type="file" name="image" required class="border p-2">
+    <button class="bg-blue-500 text-white px-4 py-2 rounded">Upload</button>
+  </form>
+
+  <!-- Image Bucket -->
+  <div class="mb-8">
+    <h2 class="text-xl font-bold mb-2">🪣 Image Bucket</h2>
+    <div id="BUCKET" class="flex gap-2 flex-wrap bg-white p-4 rounded shadow min-h-[100px]" ondrop="drop(event, 'BUCKET')" ondragover="allowDrop(event)">
+      {% for img in tiers['BUCKET'] %}
+        <img src="{{ url_for('static', filename='uploads/' ~ img) }}" 
+             draggable="true"
+             data-img="{{ img }}"
+             ondragstart="drag(event)"
+             class="w-24 h-24 object-cover border rounded">
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Tiers -->
+  <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+    {% for tier in ['S', 'A', 'B', 'C', 'D'] %}
+    <div class="bg-white p-4 rounded shadow-md" ondrop="drop(event, '{{ tier }}')" ondragover="allowDrop(event)">
+      <h2 class="text-xl font-bold mb-2">{{ tier }} Tier</h2>
+      <div id="{{ tier }}" class="min-h-[100px] flex flex-wrap gap-2">
+        {% for img in tiers[tier] %}
+          <img src="{{ url_for('static', filename='uploads/' ~ img) }}"
+               draggable="true"
+               data-img="{{ img }}"
+               ondragstart="drag(event)"
+               class="w-24 h-24 object-cover border rounded">
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>
