@@ -2,22 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Tier List</title>
+  <title>Collaborative Tier List</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 </head>
-<body class="bg-gray-100 p-6">
+<body class="bg-gray-900 p-6 text-white">
   <h1 class="text-3xl font-bold text-center mb-4">Collaborative Tier List</h1>
 
   <!-- Upload form -->
   <form action="/upload" method="POST" enctype="multipart/form-data" class="flex justify-center gap-4 mb-6">
-    <input type="file" name="image" required class="border p-2">
-    <button class="bg-blue-500 text-white px-4 py-2 rounded">Upload</button>
+    <input type="file" name="image" required class="border p-2 bg-gray-700 text-white">
+    <button class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-500">Upload</button>
   </form>
 
   <!-- Image Bucket -->
   <div class="mb-8">
     <h2 class="text-xl font-bold mb-2">🪣 Image Bucket</h2>
-    <div id="BUCKET" class="flex gap-2 flex-wrap bg-white p-4 rounded shadow min-h-[100px]" ondrop="drop(event, 'BUCKET')" ondragover="allowDrop(event)">
+    <div id="BUCKET" class="flex gap-2 flex-wrap bg-gray-800 p-4 rounded shadow min-h-[100px]" ondrop="drop(event, 'BUCKET')" ondragover="allowDrop(event)">
       {% for img in tiers['BUCKET'] %}
         <img src="{{ url_for('static', filename='uploads/' ~ img) }}" 
              draggable="true"
@@ -29,23 +30,68 @@
   </div>
 
   <!-- Tiers -->
-  <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-    {% for tier in ['S', 'A', 'B', 'C', 'D'] %}
-    <div class="bg-white p-4 rounded shadow-md" ondrop="drop(event, '{{ tier }}')" ondragover="allowDrop(event)">
-      <h2 class="text-xl font-bold mb-2">{{ tier }} Tier</h2>
-      <div id="{{ tier }}" class="min-h-[100px] flex flex-wrap gap-2">
-        {% for img in tiers[tier] %}
-          <img src="{{ url_for('static', filename='uploads/' ~ img) }}"
-               draggable="true"
-               data-img="{{ img }}"
-               ondragstart="drag(event)"
-               class="w-24 h-24 object-cover border rounded">
-        {% endfor %}
+  <div class="flex flex-col gap-2">
+    {% for tier, color in [('S', 'bg-red-400'), ('A', 'bg-orange-300'), ('B', 'bg-yellow-300'), ('C', 'bg-yellow-200'), ('D', 'bg-lime-300')] %}
+    <div class="flex h-24">
+      <div class="{{ color }} w-20 flex items-center justify-center font-bold text-black border border-black">{{ tier }}</div>
+      <div ondrop="drop(event, '{{ tier }}')" ondragover="allowDrop(event)" class="flex-1 bg-gray-800 p-2 flex flex-wrap gap-2 border border-black min-h-full">
+        <div id="{{ tier }}" class="flex flex-wrap gap-2">
+          {% for img in tiers[tier] %}
+            <img src="{{ url_for('static', filename='uploads/' ~ img) }}"
+                 draggable="true"
+                 data-img="{{ img }}"
+                 ondragstart="drag(event)"
+                 class="w-24 h-24 object-cover border rounded">
+          {% endfor %}
+        </div>
       </div>
     </div>
     {% endfor %}
   </div>
 
-  <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <!-- Scripts -->
+  <script>
+    const socket = io();
+
+    function allowDrop(ev) {
+      ev.preventDefault();
+    }
+
+    function drag(ev) {
+      ev.dataTransfer.setData("text", ev.target.dataset.img);
+    }
+
+    function drop(ev, targetTier) {
+      ev.preventDefault();
+      const image = ev.dataTransfer.getData("text");
+      const imgElement = document.querySelector(`[data-img='${image}']`);
+      const targetDiv = document.querySelector(`#${targetTier}`);
+      if (imgElement && targetDiv) {
+        targetDiv.appendChild(imgElement);
+        socket.emit("move_image", { image: image, to: targetTier });
+      }
+    }
+
+    socket.on("update_image", (data) => {
+      const { image, to } = data;
+      const imgElement = document.querySelector(`[data-img='${image}']`);
+      const targetDiv = document.querySelector(`#${to}`);
+      if (imgElement && targetDiv && !targetDiv.contains(imgElement)) {
+        targetDiv.appendChild(imgElement);
+      }
+    });
+
+    socket.on("image_added", (data) => {
+      const { image, tier } = data;
+      const bucket = document.querySelector(`#${tier}`);
+      const img = document.createElement("img");
+      img.src = `/static/uploads/${image}`;
+      img.className = "w-24 h-24 object-cover border rounded";
+      img.setAttribute("draggable", "true");
+      img.setAttribute("data-img", image);
+      img.ondragstart = drag;
+      bucket.appendChild(img);
+    });
+  </script>
 </body>
 </html>
