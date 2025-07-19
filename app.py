@@ -41,5 +41,4 @@ def handle_move_image(data):
 
 if __name__ == "__main__":
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    socketio.run(app, debug=True, host="0.0.0.0", port=5000)
 
