@@ -15,7 +15,7 @@ function drop(ev, toTier) {
     if (imgEl && targetContainer) {
         targetContainer.appendChild(imgEl);
 
-        fetch("/move", {
+        fetch(`/room/${roomCode}/move`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ image: imgName, to: toTier })
