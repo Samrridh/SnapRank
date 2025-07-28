@@ -89,5 +89,5 @@ def on_leave(data):
     emit("status", {"msg": f"You have left room {room_code}."})
 
 if __name__ == "__main__":
-    socketio.run(host="0.0.0.0", port=5000)
+    socketio.run(app,host="0.0.0.0", port=5000)
     # socketio.run(app, port=port, debug=True, use_reloader=False)
