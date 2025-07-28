@@ -1,12 +1,19 @@
 from flask import Flask, render_template, request, redirect, url_for
+from flask_socketio import SocketIO, emit, join_room, leave_room
 import os
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+app.config["SECRET_KEY"] = "testing"  
+socketio = SocketIO(app)
+
 UPLOAD_FOLDER = "static/uploads"
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
-room_data = {}
+room_data = {}  
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -28,7 +35,6 @@ def room(code):
     if code not in room_data:
         return "Room not found", 404
 
-    # Categorize images
     tiers = {tier: [] for tier in ["BUCKET", "S", "A", "B", "C", "D"]}
     for img, tier in room_data[code].items():
         tiers[tier].append(img)
@@ -48,6 +54,8 @@ def upload(code):
         save_path = os.path.join(room_path, filename)
         file.save(save_path)
         room_data[code][filename] = "BUCKET"
+        
+        socketio.emit("new_image", {"image": filename, "tier": "BUCKET"}, room=code)
 
     return redirect(url_for("room", code=code))
 
@@ -62,9 +70,25 @@ def move(code):
 
     if image in room_data[code]:
         room_data[code][image] = to_tier
+        socketio.emit("image_moved", {"image": image, "to_tier": to_tier}, room=code)
 
     return {"status": "success"}
 
+@socketio.on("join")
+def on_join(data):
+    room_code = data["room"]
+    join_room(room_code)
+    print(f"Client joined room: {room_code}")
+    emit("status", {"msg": f"You have joined room {room_code}."})
+
+@socketio.on("leave")
+def on_leave(data):
+    room_code = data["room"]
+    leave_room(room_code)
+    print(f"Client left room: {room_code}")
+    emit("status", {"msg": f"You have left room {room_code}."})
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000)) 
-    app.run(host='0.0.0.0', port=port, debug=True, use_reloader=False)
+    # socketio.run(app, host='0.0.0.0', port=port, debug=True, use_reloader=False)
+    socketio.run(app, port=port, debug=True, use_reloader=False)

@@ -1,58 +1,146 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>SnapRank - Make Tiers with Friends: {{ code }}</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8" />
+    <title>SnapRank - Make Tiers with Friends: {{ code }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
 </head>
 <body class="bg-gray-900 p-6 text-white">
-  <h1 class="text-3xl font-bold text-center mb-4">Room {{ code }}</h1>
-  <h4 class="text-xl  text-center mb-4">Upload photos and rank items with your friends</h4>
+    <h1 class="text-3xl font-bold text-center mb-4">Room {{ code }}</h1>
+    <h4 class="text-xl text-center mb-4">Upload photos and rank items with your friends</h4>
 
-  <!-- Upload form -->
-  <form action="/room/{{ code }}/upload" method="POST" enctype="multipart/form-data" class="flex justify-center gap-4 mb-6">
-    <input type="file" name="image" multiple required class="border p-2 text-black bg-white rounded">
-    <button class="bg-blue-500 text-white px-4 py-2 rounded">Upload Images</button>
-  </form>
+    <form action="/room/{{ code }}/upload" method="POST" enctype="multipart/form-data" class="flex justify-center gap-4 mb-6">
+        <input type="file" name="image" multiple required class="border p-2 text-black bg-white rounded">
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Upload Images</button>
+    </form>
 
-  <!-- Image Bucket -->
-  <div class="mb-8">
-    <h2 class="text-xl font-bold mb-2">🪣 Image Bucket</h2>
-    <div id="BUCKET" class="flex gap-2 flex-wrap bg-gray-700 p-4 rounded shadow min-h-[100px]" ondrop="drop(event, 'BUCKET')" ondragover="allowDrop(event)">
-      {% for img in tiers['BUCKET'] %}
-        <img src="{{ url_for('static', filename='uploads/' ~ code ~ '/' ~ img) }}" 
-             draggable="true"
-             data-img="{{ img }}"
-             ondragstart="drag(event)"
-             class="w-24 h-24 object-cover border rounded">
-      {% endfor %}
-    </div>
-  </div>
-
-  <!-- Tiers -->
-  <div class="flex flex-col gap-2">
-    {% for tier, color in [('S', 'bg-red-400'), ('A', 'bg-orange-300'), ('B', 'bg-yellow-300'), ('C', 'bg-yellow-200'), ('D', 'bg-lime-300')] %}
-      <div class="flex h-24">
-        <div class="{{ color }} w-20 flex items-center justify-center font-bold text-black border border-black">{{ tier }}</div>
-        <div ondrop="drop(event, '{{ tier }}')" ondragover="allowDrop(event)" class="flex-1 bg-gray-800 p-2 flex flex-wrap gap-2 border border-black min-h-full">
-          <div id="{{ tier }}" class="flex flex-wrap gap-2">
-            {% for img in tiers[tier] %}
-              <img src="{{ url_for('static', filename='uploads/' ~ code ~ '/' ~ img) }}"
-                   draggable="true"
-                   data-img="{{ img }}"
-                   ondragstart="drag(event)"
-                   class="w-24 h-24 object-cover border rounded">
+    <div class="mb-8">
+        <h2 class="text-xl font-bold mb-2">🪣 Image Bucket</h2>
+        <div id="BUCKET" class="flex gap-2 flex-wrap bg-gray-700 p-4 rounded shadow min-h-[100px]" ondrop="drop(event, 'BUCKET')" ondragover="allowDrop(event)">
+            {% for img in tiers['BUCKET'] %}
+                <img src="{{ url_for('static', filename='uploads/' ~ code ~ '/' ~ img) }}" 
+                     draggable="true"
+                     data-img="{{ img }}"
+                     id="img-{{ img }}" ondragstart="drag(event)"
+                     class="w-24 h-24 object-cover border rounded">
             {% endfor %}
-          </div>
         </div>
-      </div>
-    {% endfor %}
-  </div>
+    </div>
 
-  <!-- JavaScript -->
-  <script>
-    const roomCode = "{{ code }}";
-  </script>
-  <script src="{{ url_for('static', filename='main.js') }}"></script>
+    <div class="flex flex-col gap-2">
+        {% for tier, color in [('S', 'bg-red-400'), ('A', 'bg-orange-300'), ('B', 'bg-yellow-300'), ('C', 'bg-yellow-200'), ('D', 'bg-lime-300')] %}
+            <div class="flex h-24">
+                <div class="{{ color }} w-20 flex items-center justify-center font-bold text-black border border-black">{{ tier }}</div>
+                <div ondrop="drop(event, '{{ tier }}')" ondragover="allowDrop(event)" class="flex-1 bg-gray-800 p-2 flex flex-wrap gap-2 border border-black min-h-full">
+                    <div id="{{ tier }}" class="flex flex-wrap gap-2"> {% for img in tiers[tier] %}
+                            <img src="{{ url_for('static', filename='uploads/' ~ code ~ '/' ~ img) }}"
+                                 draggable="true"
+                                 data-img="{{ img }}"
+                                 id="img-{{ img }}" ondragstart="drag(event)"
+                                 class="w-24 h-24 object-cover border rounded">
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        const roomCode = "{{ code }}";
+        const socket = io(); 
+
+        socket.on('connect', function() {
+            socket.emit('join', { room: roomCode });
+            console.log('Connected to server, joining room:', roomCode);
+        });
+
+        socket.on('status', function(data) {
+            console.log('Server status:', data.msg);
+        });
+
+        socket.on('new_image', function(data) {
+            console.log('New image received via WebSocket:', data);
+            const tierBucketContainer = document.getElementById('BUCKET'); 
+            
+            if (tierBucketContainer) {
+                const newImageElement = document.createElement('img');
+                newImageElement.src = `/static/uploads/${roomCode}/${data.image}`;
+                newImageElement.draggable = true;
+                newImageElement.setAttribute('data-img', data.image);
+                newImageElement.id = `img-${data.image}`; 
+                newImageElement.setAttribute('ondragstart', `drag(event)`);
+                newImageElement.classList.add('w-24', 'h-24', 'object-cover', 'border', 'rounded'); 
+
+                tierBucketContainer.appendChild(newImageElement);
+            }
+        });
+
+        socket.on('image_moved', function(data) {
+            console.log('Image moved via WebSocket:', data);
+            const imageElement = document.getElementById(`img-${data.image}`);
+            if (imageElement) {
+                const targetTierContainer = document.getElementById(data.to_tier); 
+                if (targetTierContainer) {
+                    targetTierContainer.appendChild(imageElement);
+                }
+            }
+        });
+
+        let draggedElement = null; 
+
+        function allowDrop(event) {
+            event.preventDefault();
+            event.currentTarget.classList.add('border-blue-500', 'border-2', 'bg-blue-900'); 
+        }
+
+        function drag(event) {
+            draggedElement = event.target; 
+            event.dataTransfer.setData("text/plain", event.target.dataset.img);
+            event.dataTransfer.effectAllowed = "move";
+        }
+
+        function drop(event, tierName) {
+            event.preventDefault();
+            event.currentTarget.classList.remove('border-blue-500', 'border-2', 'bg-blue-900'); 
+            const filename = event.dataTransfer.getData("text/plain");
+            
+            const currentTierElement = draggedElement.closest('.flex-wrap'); 
+            let currentTierId = currentTierElement ? currentTierElement.id : null;
+            if (!currentTierId && draggedElement.closest('#BUCKET')) {
+                currentTierId = 'BUCKET';
+            }
+
+
+            if (currentTierId && currentTierId !== tierName) {
+                fetch(`/room/${roomCode}/move`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ image: filename, to: tierName })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === "success") {
+                        console.log(`Move request sent for ${filename} to ${tierName}`);
+                    } else {
+                        console.error('Error moving image:', data.message);
+                    }
+                })
+                .catch(error => console.error('Error:', error));
+            }
+        }
+
+        document.querySelectorAll('.flex-wrap').forEach(tierDiv => {
+            tierDiv.addEventListener('dragleave', (event) => {
+                event.currentTarget.classList.remove('border-blue-500', 'border-2', 'bg-blue-900');
+            });
+            tierDiv.addEventListener('dragend', (event) => {
+                document.querySelectorAll('.flex-wrap').forEach(t => t.classList.remove('border-blue-500', 'border-2', 'bg-blue-900'));
+            });
+        });
+
+    </script>
 </body>
 </html>
