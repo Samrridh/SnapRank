@@ -3,7 +3,7 @@ from flask_socketio import SocketIO, emit, join_room, leave_room
 import os
 from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder="../static", template_folder="../templates")
 app.config["SECRET_KEY"] = "testing"  
 socketio = SocketIO(app)
 
@@ -90,5 +90,5 @@ def on_leave(data):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 10000)) 
-    # socketio.run(app, host='0.0.0.0', port=port, debug=True, use_reloader=False)
-    socketio.run(app, port=port, debug=True, use_reloader=False)
+    socketio.run(app, host='0.0.0.0', port=port, debug=True, use_reloader=False)
+    # socketio.run(app, port=port, debug=True, use_reloader=False)
