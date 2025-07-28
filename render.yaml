@@ -3,4 +3,4 @@ services:
     name: your-app-name
     env: python
     buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn -k eventlet -w 1 api.app:app"
+    startCommand: "gunicorn -k eventlet -w 1 app:app"
